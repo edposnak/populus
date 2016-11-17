@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import itertools
 import json
 import logging
 import pprint
@@ -61,11 +62,22 @@ def _normalize_combined_json_contract_data(contract_data):
 class SolcCombinedJSONBackend(BaseCompilerBackend):
     logger = logging.getLogger('populus.compilation.backends.solc.SolcCombinedJSONBackend')
 
+    # TODO: import_remappings is duplicated between settings file and this API.
+    # what do do? merge/override?
     def get_compiled_contract_data(self, source_file_paths, import_remappings):
         self.logger.debug("Compiler Settings: %s", pprint.pformat(self.compiler_settings))
 
+        all_import_remappings = list(itertools.chain(
+            self.compiler_settings.pop('import_remappings', []),
+            import_remappings,
+        )) or None
+
         try:
-            compiled_contracts = compile_files(source_file_paths, **self.compiler_settings)
+            compiled_contracts = compile_files(
+                source_file_paths,
+                import_remappings=all_import_remappings,
+                **self.compiler_settings
+            )
         except ContractsNotFound:
             return {}
 
