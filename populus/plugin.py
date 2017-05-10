@@ -48,7 +48,6 @@ def web3(chain):
 
 @pytest.fixture()
 def base_contract_factories(chain):
-    # TODO: figure out what to do with thi API
     return package_contracts({
         contract_name: chain.provider.get_base_contract_factory(contract_name)
         for contract_name in chain.provider.get_all_contract_names()
