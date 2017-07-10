@@ -31,9 +31,15 @@ from populus.config.versions import (
 
 
 NEW_V5_PATHS = {
+    'compilation.backends.SolcAutoBackend',
+    'compilation.backends.SolcStandardJSONBackend',
 }
 
 MOVED_V4_PATHS = {
+}
+
+MODIFIED_V4_PATHS = {
+    'compilation.backends.SolcCombinedJSONBackend.settings.output_values',
 }
 
 
@@ -58,6 +64,8 @@ def upgrade_v4_to_v5(v4_config):
 
     upgraded_v4_config = copy.deepcopy(v4_config)
 
+    # new configuration values whos keys were not present in the previous
+    # configuration.
     for key_path in NEW_V5_PATHS:
         if has_nested_key(upgraded_v4_config, key_path):
             continue
@@ -67,6 +75,7 @@ def upgrade_v4_to_v5(v4_config):
             get_nested_key(v5_default_config, key_path),
         )
 
+    # keys in the new configuration that were relocated.
     for old_path, new_path in MOVED_V4_PATHS.items():
         default_value = get_nested_key(v5_default_config, new_path)
 
@@ -96,6 +105,25 @@ def upgrade_v4_to_v5(v4_config):
                 new_path,
                 default_value,
             )
+
+    # keys from the previous configuration that were changed.
+    for key_path in MODIFIED_V4_PATHS:
+        new_default = get_nested_key(v5_default_config, key_path)
+        if key_path not in upgraded_v4_config:
+            set_nested_key(
+                upgraded_v4_config,
+                key_path,
+                new_default,
+            )
+        else:
+            current_value = get_nested_key(upgraded_v4_config, key_path)
+            old_default = get_nested_key(v4_default_config, key_path)
+            if current_value == old_default:
+                set_nested_key(
+                    upgraded_v4_config,
+                    key_path,
+                    new_default,
+                )
 
     # bump the version
     set_nested_key(upgraded_v4_config, 'version', V5)

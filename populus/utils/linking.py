@@ -38,11 +38,12 @@ def convert_linkrefs_from_standard_json(linkrefs):
         LinkReference(
             reference_name=None,
             full_name=(path, name),
-            offset=loc['start']*2,
-            length=loc['length']*2,
-        ) for path, names in linkrefs.items()
-            for name, locs in names.items()
-                for loc in locs
+            offset=loc['start'] * 2,
+            length=loc['length'] * 2,
+        )
+        for path, names in linkrefs.items()
+        for name, locs in names.items()
+        for loc in locs
     ))
 
 

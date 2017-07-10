@@ -2,39 +2,37 @@ import json
 
 
 class ContractKeyMapping(object):
-    def __init__(self, contracts=None):
-        if contracts is None:
-            contracts = {}
+    def __init__(self, contract_data=None):
+        if contract_data is None:
+            contract_data = {}
 
-        invalid_syms = [sym for (_, sym) in contracts.keys() if ':' in sym]
+        invalid_syms = [sym for (_, sym) in contract_data.keys() if ':' in sym]
         if len(invalid_syms) > 0:
             raise ValueError('Invalid symbols containing `:` found: {}'.format(invalid_syms))
 
-        self.contracts = contracts
-
+        self.contract_data = contract_data
 
     def to_dict(self):
-        return {':'.join(k): v for k, v in self.contracts.items()}
+        return {':'.join(k): v for k, v in self.contract_data.items()}
 
     @classmethod
     def from_dict(cls, dct):
-        contracts = {}
+        contract_data = {}
 
         for k, v in dct.items():
             if isinstance(k, tuple):
                 path, sym = k
             else:
                 path, _, sym = k.rpartition(':')
-            contracts[(path, sym)] = v
+            contract_data[(path, sym)] = v
 
-        return cls(contracts)
-
+        return cls(contract_data)
 
     def normalize_key(self, key, return_on_no_match=False):
         if isinstance(key, list):
             key = tuple(key)
 
-        if key in self.contracts:
+        if key in self.contract_data:
             return key
 
         if isinstance(key, str):
@@ -43,7 +41,7 @@ class ContractKeyMapping(object):
             kpath, ksym = key
 
         key_matches = [
-            (path, sym) for (path, sym) in self.contracts.keys()
+            (path, sym) for (path, sym) in self.contract_data.keys()
             if (not kpath or not path or kpath == path) and sym == ksym
         ]
 
@@ -60,36 +58,35 @@ class ContractKeyMapping(object):
 
         return key_matches[0]
 
-
     def __getitem__(self, key):
-        return self.contracts[self.normalize_key(key)]
+        return self.contract_data[self.normalize_key(key)]
 
     def __setitem__(self, key, value):
-        self.contracts[self.normalize_key(key, return_on_no_match=True)] = value
+        self.contract_data[self.normalize_key(key, return_on_no_match=True)] = value
 
     def __contains__(self, key):
-        return self.normalize_key(key, return_on_no_match=True) in self.contracts
+        return self.normalize_key(key, return_on_no_match=True) in self.contract_data
 
     def __len__(self):
-        return len(self.contracts)
+        return len(self.contract_data)
 
     def __delitem__(self, key):
-        del self.contracts[self.normalize_key(key)]
+        del self.contract_data[self.normalize_key(key)]
 
     def __iter__(self):
-        return iter(self.contracts)
+        return iter(self.contract_data)
 
     def get(self, key, default=None):
-        return self.contracts.get(self.normalize_key(key, return_on_no_match=True), default)
+        return self.contract_data.get(self.normalize_key(key, return_on_no_match=True), default)
 
     def items(self):
-        return self.contracts.items()
+        return self.contract_data.items()
 
     def keys(self):
-        return self.contracts.keys()
+        return self.contract_data.keys()
 
     def values(self):
-        return self.contracts.values()
+        return self.contract_data.values()
 
 
 class ContractKeyMappingEncoder(json.JSONEncoder):
@@ -100,8 +97,8 @@ class ContractKeyMappingEncoder(json.JSONEncoder):
 
 
 class DefaultContractKeyMapping(ContractKeyMapping):
-    def __init__(self, default_factory, contracts=None):
-        super().__init__(contracts)
+    def __init__(self, default_factory, contract_data=None):
+        super().__init__(contract_data)
         self.default_factory = default_factory
 
     def __getitem__(self, key):

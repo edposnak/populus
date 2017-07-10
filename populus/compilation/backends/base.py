@@ -1,4 +1,5 @@
 import json
+import logging
 
 from toolz.dicttoolz import (
     assoc,
@@ -14,6 +15,9 @@ from populus.utils.contracts import (
     get_shallow_dependency_graph,
     get_recursive_contract_dependencies,
 )
+from populus.utils.module_loading import (
+    get_import_path,
+)
 
 
 class BaseCompilerBackend(object):
@@ -21,6 +25,7 @@ class BaseCompilerBackend(object):
 
     def __init__(self, settings):
         self.compiler_settings = settings
+        self.logger = logging.getLogger(get_import_path(type(self)))
 
     def get_compiled_contract_data(self, source_file_paths, import_remappings):
         raise NotImplementedError("Must be implemented by subclasses")
