@@ -90,4 +90,3 @@ class SolcCombinedJSONBackend(BaseCompilerBackend):
         add_dependency_info(compiled_contracts)
 
         return ContractKeyMapping(compiled_contracts)
-

@@ -1,7 +1,12 @@
 import json
 
+from toolz.dicttoolz import (
+    assoc,
+)
+
 from eth_utils import (
     is_string,
+    to_dict,
 )
 
 from populus.utils.deploy import compute_deploy_order
@@ -37,17 +42,18 @@ def _normalize_contract_metadata(metadata):
         raise ValueError("Unknown metadata format '{0}'".format(metadata))
 
 
-def add_dependency_info(compiled_contracts):
+@to_dict
+def set_dependency_info(compiled_contracts):
     dependency_graph = get_shallow_dependency_graph(
         compiled_contracts,
     )
 
     deploy_order = compute_deploy_order(dependency_graph)
 
-    for name, contract in compiled_contracts.items():
+    for name, contract_data in compiled_contracts.items():
         deps = get_recursive_contract_dependencies(
             name,
             dependency_graph,
         )
-        contract['ordered_dependencies'] = [cid for cid in deploy_order if cid in deps]
-
+        ordered_deps = [cid for cid in deploy_order if cid in deps]
+        yield name, assoc(contract_data, 'ordered_dependencies', ordered_deps)
