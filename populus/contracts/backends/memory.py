@@ -1,8 +1,9 @@
 from populus.contracts.exceptions import (
     NoKnownAddress,
 )
-from populus.utils.contract_key_mapping import (
-    DefaultContractKeyMapping,
+
+from populus.utils.contracts import (
+    ContractMapping,
 )
 
 from .base import BaseContractBackend
@@ -19,7 +20,7 @@ class MemoryBackend(BaseContractBackend):
     contract_addresses = None
 
     def setup_backend(self):
-        self.contract_addresses = DefaultContractKeyMapping(set)
+        self.contract_addresses = ContractMapping({})
 
     #
     # Registrar API
@@ -31,4 +32,7 @@ class MemoryBackend(BaseContractBackend):
             raise NoKnownAddress("No known address for '{0}'".format(instance_name))
 
     def set_contract_address(self, instance_name, address):
-        self.contract_addresses[instance_name].add(address)
+        if instance_name in self.contract_addresses:
+            self.contract_addresses[instance_name].add(address)
+        else:
+            self.contract_addresses[instance_name] = {address}

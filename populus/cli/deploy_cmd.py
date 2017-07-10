@@ -91,7 +91,7 @@ def deploy_cmd(ctx, chain_name, wait_for_sync, contracts_to_deploy):
                 "compiled project contracts.  These contracts could not be found "
                 "'{0}'.  Searched these known contracts '{1}'".format(
                     ', '.join(sorted(unknown_contracts)),
-                    ', '.join(sorted(contract_data.keys())),
+                    ', '.join((':'.join(contract_key) for contract_key in sorted(contract_data.keys()))),
                 )
             )
             raise click.ClickException(unknown_contracts_message)

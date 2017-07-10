@@ -13,7 +13,9 @@ from populus.config import (
     load_config_schema,
     write_config as _write_config,
 )
-from populus.utils.contract_key_mapping import ContractKeyMapping
+from populus.utils.contracts import (
+    ContractMapping,
+)
 from populus.utils.chains import (
     get_base_blockchain_storage_dir,
 )
@@ -177,7 +179,7 @@ class Project(object):
         :return:
         """
         if isinstance(contracts, dict):
-            contracts = ContractKeyMapping.from_dict(contracts)
+            contracts = ContractMapping.from_dict(contracts)
 
         self._cached_compiled_contracts_mtime = contracts_mtime
         self._cached_compiled_contracts = contracts

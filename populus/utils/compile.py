@@ -4,10 +4,23 @@ import os
 import json
 import logging
 
-from eth_utils import (
-    to_tuple,
+from toolz.dicttoolz import (
+    assoc,
 )
 
+from eth_utils import (
+    to_tuple,
+    to_dict,
+    is_string,
+)
+
+from .contracts import (
+    get_shallow_dependency_graph,
+    get_recursive_contract_dependencies,
+)
+from .deploy import (
+    compute_deploy_order,
+)
 from .filesystem import (
     recursive_find_files,
     ensure_file_exists,
@@ -78,3 +91,35 @@ def write_compiled_sources(compiled_contracts_asset_path, compiled_sources):
     )
 
     return compiled_contracts_asset_path
+
+
+@to_dict
+def add_dependencies_to_compiled_contracts(compiled_contracts):
+    dependency_graph = get_shallow_dependency_graph(
+        compiled_contracts,
+    )
+    deploy_order = compute_deploy_order(dependency_graph)
+
+    for contract_name, contract_data in compiled_contracts.items():
+        deps = get_recursive_contract_dependencies(
+            contract_name,
+            dependency_graph,
+        )
+        ordered_deps = [cid for cid in deploy_order if cid in deps]
+        yield contract_name, assoc(contract_data, 'ordered_dependencies', ordered_deps)
+
+
+def load_json_if_string(value):
+    if is_string(value):
+        return json.loads(value)
+    else:
+        return value
+
+
+def normalize_contract_metadata(metadata):
+    if not metadata:
+        return None
+    elif is_string(metadata):
+        return json.loads(metadata)
+    else:
+        raise ValueError("Unknown metadata format '{0}'".format(metadata))

@@ -1,12 +1,12 @@
+import collections
 import itertools
+import json
 import re
 
 from eth_utils import (
     is_string,
     remove_0x_prefix,
 )
-
-from populus.utils.contract_key_mapping import ContractKeyMapping
 
 from .filesystem import (
     is_under_path,
@@ -21,6 +21,115 @@ from .mappings import (
 from .string import (
     normalize_class_name,
 )
+
+
+class ContractMapping(collections.Mapping):
+    """
+    Container for compiled
+    """
+    def __init__(self, compiled_contracts=None):
+        if compiled_contracts is None:
+            compiled_contracts = {}
+
+        for contract_key in compiled_contracts.keys():
+            if not isinstance(contract_key, tuple):
+                raise ValueError("Invalid key: {0}".format(contract_key))
+        self.compiled_contracts = compiled_contracts
+
+    def to_dict(self):
+        """
+        Convert this to a normal dictionary.
+        """
+        return {':'.join(k): v for k, v in self.compiled_contracts.items()}
+
+    @classmethod
+    def from_dict(cls, _dict):
+        """
+        Create an instance from a dictionary.
+        """
+        compiled_contracts = {}
+
+        for k, v in _dict.items():
+            if isinstance(k, tuple):
+                path, sym = k
+            else:
+                path, _, sym = k.rpartition(':')
+            compiled_contracts[(path, sym)] = v
+
+        return cls(compiled_contracts)
+
+    def normalize_key(self, key, return_on_no_match=False):
+        """
+        TODO
+        """
+        if isinstance(key, list):
+            key = tuple(key)
+
+        if key in self.compiled_contracts:
+            return key
+
+        if isinstance(key, str):
+            kpath, _, ksym = key.rpartition(':')
+        else:
+            kpath, ksym = key
+
+        key_matches = [
+            (path, sym) for (path, sym) in self.compiled_contracts.keys()
+            if (not kpath or not path or kpath == path) and sym == ksym
+        ]
+
+        if len(key_matches) == 0:
+            if return_on_no_match:
+                if isinstance(key, str):
+                    path, _, sym = key.rpartition(':')
+                    return (path, sym)
+                return key
+            raise KeyError('No matches found for index {}'.format(key))
+
+        if len(key_matches) > 1:
+            raise KeyError('Multiple matches found for index {}: {}'.format(key, key_matches))
+
+        return key_matches[0]
+
+    #
+    # Mapping API
+    #
+    def __getitem__(self, key):
+        return self.compiled_contracts[self.normalize_key(key)]
+
+    def __setitem__(self, key, value):
+        self.compiled_contracts[self.normalize_key(key, return_on_no_match=True)] = value
+
+    def __contains__(self, key):
+        return self.normalize_key(key, return_on_no_match=True) in self.compiled_contracts
+
+    def __len__(self):
+        return len(self.compiled_contracts)
+
+    def __delitem__(self, key):
+        del self.compiled_contracts[self.normalize_key(key)]
+
+    def __iter__(self):
+        return iter(self.compiled_contracts)
+
+    def get(self, key, default=None):
+        return self.compiled_contracts.get(self.normalize_key(key, return_on_no_match=True), default)
+
+    def items(self):
+        return self.compiled_contracts.items()
+
+    def keys(self):
+        return self.compiled_contracts.keys()
+
+    def values(self):
+        return self.compiled_contracts.values()
+
+
+class ContractMappingEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ContractMapping):
+            return obj.to_dict()
+        return json.JSONEncoder.default(self, obj)
 
 
 def get_contract_source_file_path(contract_data):
@@ -131,7 +240,7 @@ def get_shallow_dependency_graph(contracts):
     use_primitive = isinstance(contracts, dict)
 
     if use_primitive:
-        contracts = ContractKeyMapping.from_dict(contracts)
+        contracts = ContractMapping.from_dict(contracts)
 
     link_dependencies = {
         contract_key: set(ref.full_name for ref in get_link_references(
@@ -154,7 +263,7 @@ def get_shallow_dependency_graph(contracts):
 
         return link_dependencies
 
-    return ContractKeyMapping(link_dependencies)
+    return ContractMapping(link_dependencies)
 
 
 def get_recursive_contract_dependencies(contract_name, dependency_graph):

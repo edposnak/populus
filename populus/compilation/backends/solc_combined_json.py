@@ -1,8 +1,6 @@
 from __future__ import absolute_import
 
-import logging
 import pprint
-import os
 
 from semantic_version import Spec
 
@@ -12,7 +10,6 @@ from eth_utils import (
 )
 
 from solc import (
-    compile_source,
     compile_files,
     get_solc_version,
 )
@@ -20,13 +17,16 @@ from solc.exceptions import (
     ContractsNotFound,
 )
 
-from populus.utils.contract_key_mapping import ContractKeyMapping
+from populus.utils.compile import (
+    load_json_if_string,
+    normalize_contract_metadata,
+)
+from populus.utils.mappings import (
+    get_nested_key,
+)
 
 from .base import (
     BaseCompilerBackend,
-    _load_json_if_string,
-    _normalize_contract_metadata,
-    add_dependency_info,
 )
 
 
@@ -45,25 +45,48 @@ else:
         return key_from_compiler
 
 
+def normalize_combined_json_contract_key(key_from_compiler, contract_data):
+    if ':' not in key_from_compiler:
+        try:
+            compilation_target = get_nested_key(
+                contract_data,
+                'metadata.settings.compilationTarget',
+            )
+        except KeyError:
+            pass
+        else:
+            if len(compilation_target) != 1:
+                raise ValueError('Invalid compilationTarget {}'.format(targ))
+            return next(it for it in compilation_target.items())
+    path, _, name = key_from_compiler.rpartition(':')
+    return path, name
+
+
 @to_dict
-def _normalize_combined_json_contract_data(contract_data):
+def normalize_combined_json_contract_data(contract_data):
     if 'metadata' in contract_data:
-        yield 'metadata', _normalize_contract_metadata(contract_data['metadata'])
+        yield 'metadata', normalize_contract_metadata(contract_data['metadata'])
     if 'bin' in contract_data:
         yield 'bytecode', add_0x_prefix(contract_data['bin'])
     if 'bin-runtime' in contract_data:
         yield 'bytecode_runtime', add_0x_prefix(contract_data['bin-runtime'])
     if 'abi' in contract_data:
-        yield 'abi', _load_json_if_string(contract_data['abi'])
+        yield 'abi', load_json_if_string(contract_data['abi'])
     if 'userdoc' in contract_data:
-        yield 'userdoc', _load_json_if_string(contract_data['userdoc'])
+        yield 'userdoc', load_json_if_string(contract_data['userdoc'])
     if 'devdoc' in contract_data:
-        yield 'devdoc', _load_json_if_string(contract_data['devdoc'])
+        yield 'devdoc', load_json_if_string(contract_data['devdoc'])
+
+
+@to_dict
+def normalize_compiled_contracts(compiled_contracts):
+    for compiler_key, raw_contract_data in compiled_contracts.items():
+        contract_data = normalize_combined_json_contract_data(raw_contract_data)
+        contract_key = normalize_combined_json_contract_key(compiler_key, contract_data)
+        yield contract_key, contract_data
 
 
 class SolcCombinedJSONBackend(BaseCompilerBackend):
-    logger = logging.getLogger('populus.compilation.backends.solc.SolcCombinedJSONBackend')
-
     def get_compiled_contract_data(self, source_file_paths, import_remappings):
         self.logger.debug("Import remappings: %s", import_remappings)
         self.logger.debug("Compiler Settings: %s", pprint.pformat(self.compiler_settings))
@@ -80,13 +103,5 @@ class SolcCombinedJSONBackend(BaseCompilerBackend):
         except ContractsNotFound:
             return {}
 
-        compiled_contracts = {}
-        for key_from_compiler, rawdata in compilation_result.items():
-            data = _normalize_combined_json_contract_data(rawdata)
-            combined_key = _get_combined_key(key_from_compiler, data)
-            path, _, sym = combined_key.rpartition(':')
-            compiled_contracts[(path, sym)] = data
-
-        add_dependency_info(compiled_contracts)
-
-        return ContractKeyMapping(compiled_contracts)
+        compiled_contracts = normalize_compiled_contracts(compilation_result)
+        return compiled_contracts

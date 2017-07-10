@@ -4,9 +4,13 @@ import itertools
 import logging
 import os
 
+from populus.utils.contracts import (
+    ContractMapping,
+)
 from populus.utils.compile import (
     get_project_source_paths,
     get_test_source_paths,
+    add_dependencies_to_compiled_contracts,
 )
 
 
@@ -38,12 +42,17 @@ def compile_project_contracts(project):
         import_remappings=project.config.get('compilation.import_remappings'),
     )
 
+    compiled_contract_data_with_dependencies = add_dependencies_to_compiled_contracts(
+        compiled_contract_data,
+    )
+    compiled_contracts = ContractMapping(compiled_contract_data_with_dependencies)
+
     logger.info("> Found %s contract source files", len(all_source_paths))
-    for path in all_source_paths:
+    for path in sorted(all_source_paths):
         logger.info("  - %s", os.path.relpath(path))
 
-    logger.info("> Compiled %s contracts", len(compiled_contract_data))
+    logger.info("> Compiled %s contracts", len(compiled_contracts))
     for contract_key in sorted(compiled_contract_data.keys()):
-        logger.info("  - %s", contract_key)
+        logger.info("  - %s", ':'.join(contract_key))
 
-    return all_source_paths, compiled_contract_data
+    return all_source_paths, compiled_contracts

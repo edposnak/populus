@@ -18,9 +18,9 @@ from populus.utils.chains import (
     get_chain_definition,
     check_if_chain_matches_chain_uri,
 )
-from populus.utils.contract_key_mapping import (
-    ContractKeyMapping,
-    ContractKeyMappingEncoder,
+from populus.utils.contracts import (
+    ContractMapping,
+    ContractMappingEncoder,
 )
 
 from .base import (
@@ -40,7 +40,7 @@ def load_registrar_data(registrar_file):
     registrar_data.setdefault('deployments', {})
 
     for chain_definition, raw_map in registrar_data['deployments'].items():
-        registrar_data['deployments'][chain_definition] = ContractKeyMapping.from_dict(raw_map)
+        registrar_data['deployments'][chain_definition] = ContractMapping.from_dict(raw_map)
 
     return registrar_data
 
@@ -60,7 +60,7 @@ class JSONFileBackend(BaseContractBackend):
             registrar_data,
             'deployments.{0}.{1}'.format(chain_definition, instance_identifier),
             address,
-            mapping_type=ContractKeyMapping,
+            mapping_type=ContractMapping,
         )
 
         with open(self.registrar_path, 'w') as registrar_file:
@@ -70,7 +70,7 @@ class JSONFileBackend(BaseContractBackend):
                 sort_keys=True,
                 indent=2,
                 separators=(',', ': '),
-                cls=ContractKeyMappingEncoder
+                cls=ContractMappingEncoder
             )
 
     @to_tuple
@@ -108,6 +108,6 @@ class JSONFileBackend(BaseContractBackend):
             with open(self.registrar_path, 'r') as registrar_file:
                 registrar_data = load_registrar_data(registrar_file)
         else:
-            registrar_data = {'deployments':{}}
+            registrar_data = {'deployments': {}}
 
         return registrar_data
