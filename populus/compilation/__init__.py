@@ -7,7 +7,7 @@ import os
 from populus.utils.compile import (
     get_project_source_paths,
     get_test_source_paths,
-    validate_contract_data,
+    validate_compiled_contracts,
     post_process_compiled_contracts,
 )
 
@@ -40,7 +40,7 @@ def compile_project_contracts(project):
         import_remappings=project.config.get('compilation.import_remappings'),
     )
     compiled_contracts = post_process_compiled_contracts(base_compiled_contracts)
-    validate_contract_data(compiled_contracts)
+    validate_compiled_contracts(compiled_contracts)
 
     logger.info("> Found %s contract source files", len(all_source_paths))
     for path in sorted(all_source_paths):

@@ -106,13 +106,13 @@ def write_compiled_sources(compiled_contracts_asset_path, compiled_sources):
 
 
 @to_dict
-def add_dependencies_to_compiled_contracts(compiled_contract_data):
+def add_dependencies_to_compiled_contracts(compiled_contracts):
     dependency_graph = get_shallow_dependency_graph(
-        compiled_contract_data,
+        compiled_contracts,
     )
     deploy_order = compute_deploy_order(dependency_graph)
 
-    for contract_name, contract_data in compiled_contract_data.items():
+    for contract_name, contract_data in compiled_contracts.items():
         deps = get_recursive_contract_dependencies(
             contract_name,
             dependency_graph,
@@ -150,7 +150,35 @@ CONTRACT_DATA_SCHEMA_PATHS = {
 }
 
 
-def validate_contract_data(contract_data, schema_version=V1):
+def validate_compiled_contracts(compiled_contracts, schema_version=V1):
+    validation_errors = tuple(
+        (contract_key, get_contract_data_validation_errors(contract_data))
+        for contract_key, contract_data
+        in compiled_contracts.items()
+    )
+    if validation_errors and any(tuple(zip(*validation_errors))[1]):
+        error_messages_by_contract = tuple(
+            (contract_key, "\n".join((error.message for error in errors)))
+            for contract_key, errors
+            in validation_errors
+            if errors
+        )
+        error_message = (
+            "The following compiled contracts did not pass validation:\n{0}".format(
+                "\n".join((
+                    "--------{path}:{name}-----------\n{error_messages}".format(
+                        path=path,
+                        name=name,
+                        error_messages=error_messages
+                    ) for (path, name), error_messages
+                    in error_messages_by_contract
+                ))
+            )
+        )
+        raise ValidationError(error_message)
+
+
+def get_contract_data_validation_errors(contract_data, schema_version=V1):
     if schema_version not in CONTRACT_DATA_SCHEMA_PATHS:
         raise KeyError("No schema for version: {0} - Must be one of {1}".format(
             schema_version,
@@ -159,9 +187,4 @@ def validate_contract_data(contract_data, schema_version=V1):
     schema = anyconfig.load(CONTRACT_DATA_SCHEMA_PATHS[schema_version])
     validator = jsonschema.Draft4Validator(schema)
     errors = [error for error in validator.iter_errors(contract_data)]
-    if errors:
-        raise ValidationError(
-            "Invalid contract data:\n{0}".format(
-                "\n".join((error.message for error in errors))
-            )
-        )
+    return errors
