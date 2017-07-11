@@ -12,5 +12,5 @@ class BaseCompilerBackend(object):
         self.compiler_settings = settings
         self.logger = logging.getLogger(get_import_path(type(self)))
 
-    def get_compiled_contract_data(self, source_file_paths, import_remappings):
+    def get_compiled_contracts(self, source_file_paths, import_remappings):
         raise NotImplementedError("Must be implemented by subclasses")

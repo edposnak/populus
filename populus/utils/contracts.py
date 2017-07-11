@@ -91,6 +91,12 @@ class ContractMapping(collections.Mapping):
 
         return key_matches[0]
 
+    def paths(self):
+        return [path for path, _ in self.keys()]
+
+    def names(self):
+        return [name for _, name in self.keys()]
+
     #
     # Mapping API
     #

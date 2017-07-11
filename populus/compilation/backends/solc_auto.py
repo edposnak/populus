@@ -33,5 +33,5 @@ class SolcAutoBackend(BaseCompilerBackend):
     def settings(self):
         return self.proxy_backend.settings
 
-    def get_compiled_contract_data(self, *args, **kwargs):
-        return self.proxy_backend.get_compiled_contract_data(*args, **kwargs)
+    def get_compiled_contracts(self, *args, **kwargs):
+        return self.proxy_backend.get_compiled_contracts(*args, **kwargs)

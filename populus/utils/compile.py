@@ -1,9 +1,16 @@
 from __future__ import absolute_import
 
+import anyconfig
+
+import jsonschema
+
 import os
 import json
 import logging
 
+from toolz.functoolz import (
+    compose,
+)
 from toolz.dicttoolz import (
     assoc,
 )
@@ -12,6 +19,11 @@ from eth_utils import (
     to_tuple,
     to_dict,
     is_string,
+)
+
+from populus import ASSETS_DIR
+from populus.exceptions import (
+    ValidationError,
 )
 
 from .contracts import (
@@ -94,19 +106,24 @@ def write_compiled_sources(compiled_contracts_asset_path, compiled_sources):
 
 
 @to_dict
-def add_dependencies_to_compiled_contracts(compiled_contracts):
+def add_dependencies_to_compiled_contracts(compiled_contract_data):
     dependency_graph = get_shallow_dependency_graph(
-        compiled_contracts,
+        compiled_contract_data,
     )
     deploy_order = compute_deploy_order(dependency_graph)
 
-    for contract_name, contract_data in compiled_contracts.items():
+    for contract_name, contract_data in compiled_contract_data.items():
         deps = get_recursive_contract_dependencies(
             contract_name,
             dependency_graph,
         )
         ordered_deps = [cid for cid in deploy_order if cid in deps]
         yield contract_name, assoc(contract_data, 'ordered_dependencies', ordered_deps)
+
+
+post_process_compiled_contracts = compose(
+    add_dependencies_to_compiled_contracts,
+)
 
 
 def load_json_if_string(value):
@@ -123,3 +140,28 @@ def normalize_contract_metadata(metadata):
         return json.loads(metadata)
     else:
         raise ValueError("Unknown metadata format '{0}'".format(metadata))
+
+
+V1 = 'v1'
+
+
+CONTRACT_DATA_SCHEMA_PATHS = {
+    V1: os.path.join(ASSETS_DIR, 'contract-data.v1.schema.json'),
+}
+
+
+def validate_contract_data(contract_data, schema_version=V1):
+    if schema_version not in CONTRACT_DATA_SCHEMA_PATHS:
+        raise KeyError("No schema for version: {0} - Must be one of {1}".format(
+            schema_version,
+            ", ".join(sorted(CONTRACT_DATA_SCHEMA_PATHS.keys())),
+        ))
+    schema = anyconfig.load(CONTRACT_DATA_SCHEMA_PATHS[schema_version])
+    validator = jsonschema.Draft4Validator(schema)
+    errors = [error for error in validator.iter_errors(contract_data)]
+    if errors:
+        raise ValidationError(
+            "Invalid contract data:\n{0}".format(
+                "\n".join((error.message for error in errors))
+            )
+        )

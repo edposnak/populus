@@ -83,7 +83,7 @@ def deploy_cmd(ctx, chain_name, wait_for_sync, contracts_to_deploy):
     if contracts_to_deploy:
         # validate that we *know* about all of the contracts
         unknown_contracts = set(contracts_to_deploy).difference(
-            contract_data.keys()
+            contract_data.names()
         )
         if unknown_contracts:
             unknown_contracts_message = (

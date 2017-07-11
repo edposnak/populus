@@ -23,6 +23,13 @@ from .base import (
 
 
 @to_dict
+def build_standard_input_sources(source_file_paths):
+    for file_path in source_file_paths:
+        with open(file_path) as source_file:
+            yield file_path, {'content': source_file.read()}
+
+
+@to_dict
 def normalize_standard_json_contract_data(contract_data):
     if 'metadata' in contract_data:
         yield 'metadata', normalize_contract_metadata(contract_data['metadata'])
@@ -45,14 +52,18 @@ def normalize_standard_json_contract_data(contract_data):
 
 
 @to_dict
-def build_standard_input_sources(source_file_paths):
-    for file_path in source_file_paths:
-        with open(file_path) as source_file:
-            yield file_path, {'content': source_file.read()}
+def build_compiled_contracts(compilation_result):
+    for path, file_contracts in compilation_result['contracts'].items():
+        for contract_name, raw_contract_data in file_contracts.items():
+            contract_data = normalize_standard_json_contract_data(raw_contract_data)
+            yield (
+                (path, contract_name),
+                contract_data,
+            )
 
 
 class SolcStandardJSONBackend(BaseCompilerBackend):
-    def get_compiled_contract_data(self, source_file_paths, import_remappings):
+    def get_compiled_contracts(self, source_file_paths, import_remappings):
         self.logger.debug("Import remappings: %s", import_remappings)
         self.logger.debug("Compiler Settings: %s", pprint.pformat(self.compiler_settings))
 
@@ -75,10 +86,5 @@ class SolcStandardJSONBackend(BaseCompilerBackend):
         except ContractsNotFound:
             return {}
 
-        # self.logger.debug("Got contracts %s", json.dumps(compiled_contracts, sort_keys=True, indent=2))
-        compiled_contracts = {
-            (path, name): normalize_standard_json_contract_data(contract)
-            for path, file_contracts in compilation_result['contracts'].items()
-            for name, contract in file_contracts.items()
-        }
+        compiled_contracts = build_compiled_contracts(compilation_result)
         return compiled_contracts

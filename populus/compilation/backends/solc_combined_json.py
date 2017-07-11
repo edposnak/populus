@@ -87,7 +87,7 @@ def normalize_compiled_contracts(compiled_contracts):
 
 
 class SolcCombinedJSONBackend(BaseCompilerBackend):
-    def get_compiled_contract_data(self, source_file_paths, import_remappings):
+    def get_compiled_contracts(self, source_file_paths, import_remappings):
         self.logger.debug("Import remappings: %s", import_remappings)
         self.logger.debug("Compiler Settings: %s", pprint.pformat(self.compiler_settings))
 
